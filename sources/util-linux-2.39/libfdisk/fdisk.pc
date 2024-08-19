@@ -1,0 +1,11 @@
+prefix=/home/dmitry/java/myOS/build/usr/local
+exec_prefix=/home/dmitry/java/myOS/build/usr/local
+libdir=/home/dmitry/java/myOS/build/usr/local/lib
+includedir=/home/dmitry/java/myOS/build/usr/local/include
+
+Name: fdisk
+Description: fdisk library
+Version: 2.39.0
+Requires.private: uuid blkid
+Cflags: -I${includedir}/libfdisk
+Libs: -L${libdir} -lfdisk

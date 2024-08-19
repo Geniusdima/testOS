@@ -1,0 +1,120 @@
+#!/bin/sh
+
+echo "Bonjour yopta!"
+
+# Step 1: Select Disk
+echo "Available disks:"
+fdisk -l
+read -p "Select a disk (e.g., /dev/sda): " disk
+
+if [ ! -b "$disk" ]; then
+    echo "Error: Disk not found"
+    exit 1
+fi
+
+# Step 2: Confirm Disk Selection
+echo "Selected disk: $disk"
+read -p "Continue? (y/n): " choice
+if [ "$choice" != "y" ]; then
+    echo "Operation canceled."
+    exit 1
+fi
+
+# Step 3: Partition the Disk
+echo "Creating partitions on disk $disk..."
+fdisk $disk <<EOF
+n
+p
+1
+
++512M
+n
+p
+2
+
+
+w
+EOF
+
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to partition the disk"
+    exit 1
+fi
+
+# Step 4: Format Partitions
+echo "Formatting partitions..."
+if ! command -v mkfs.ext4 >/dev/null 2>&1; then
+    echo "Error: mkfs.ext4 command not found"
+    exit 1
+fi
+
+mkfs.ext2 ${disk}1
+mkfs.ext2 ${disk}2
+
+# Step 5: Create Mount Points and Mount Partitions
+echo "Mounting partitions..."
+mkdir -p /mnt
+mount ${disk}2 /mnt
+mkdir -p /mnt/boot
+mount ${disk}1 /mnt/boot
+
+# Step 6: Copy System Files Using tar
+echo "Copying system files..."
+tar -cf - --exclude=/mnt --exclude=/proc --exclude=/sys --exclude=/dev --exclude=/run --exclude=/boot / | tar -xf - -C /mnt
+
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to copy files to /mnt"
+    exit 1
+fi
+
+# Step 7: Install Bootloader
+echo "Installing bootloader..."
+cd /boot/grub
+
+
+./grub-install --boot-directory=/mnt/boot $disk
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to install GRUB"
+    exit 1
+fi
+
+# Mount system directories
+mount --bind /proc /mnt/proc
+mount --bind /sys /mnt/sys
+mount --bind /dev /mnt/dev
+mount --bind /run /mnt/run
+
+# If UEFI is used
+if [ -d /sys/firmware/efi ]; then
+    mount --bind /boot/efi /mnt/boot/efi
+fi
+
+# Generate GRUB Configuration
+chroot /mnt ./grub-mkconfig -o /boot/grub/grub.cfg
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to create grub.cfg"
+    exit 1
+fi
+
+# Step 8: Create User Account
+read -p "Enter new username: " username
+read -sp "Enter password for $username: " password
+echo
+
+chroot /mnt useradd -m -s /bin/sh $username
+echo "$username:$password" | chroot /mnt chpasswd
+
+# Unmount system directories
+umount /mnt/proc
+umount /mnt/sys
+umount /mnt/dev
+umount /mnt/run
+if [ -d /sys/firmware/efi ]; then
+    umount /mnt/boot/efi
+fi
+
+# Finish Installation
+umount /mnt/boot
+umount /mnt
+
+echo "Installation successful."
