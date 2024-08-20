@@ -1,2 +1,6 @@
 sources/coreutils
 sources/grub
+sources/sysvinit
+sourses/bash
+sources/dash
+sources/util-linux
