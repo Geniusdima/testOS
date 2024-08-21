@@ -48,8 +48,8 @@ if ! command -v mkfs.ext4 >/dev/null 2>&1; then
     exit 1
 fi
 
-mkfs.ext2 ${disk}1
-mkfs.ext2 ${disk}2
+mkfs.ext4 ${disk}1
+mkfs.ext4 ${disk}2
 
 # Step 5: Create Mount Points and Mount Partitions
 echo "Mounting partitions..."
@@ -69,10 +69,8 @@ fi
 
 # Step 7: Install Bootloader
 echo "Installing bootloader..."
-cd /boot/grub
 
-
-./grub-install --boot-directory=/mnt/boot $disk
+grub-install --boot-directory=/mnt/boot $disk
 if [ $? -ne 0 ]; then
     echo "Error: Failed to install GRUB"
     exit 1
@@ -90,7 +88,7 @@ if [ -d /sys/firmware/efi ]; then
 fi
 
 # Generate GRUB Configuration
-chroot /mnt ./grub-mkconfig -o /boot/grub/grub.cfg
+chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 if [ $? -ne 0 ]; then
     echo "Error: Failed to create grub.cfg"
     exit 1
